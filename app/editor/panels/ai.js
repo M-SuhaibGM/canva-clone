@@ -7,6 +7,7 @@ import { generateImageFromAI } from "@/services/upload-service";
 import { useEditorStore } from "../_components/store";
 import { Loader, Sparkles, Wand2 } from "lucide-react";
 import { useState } from "react";
+import Image from "next/image";
 
 function AiPanels() {
   const { canvas } = useEditorStore();
@@ -101,7 +102,7 @@ function AiPanels() {
       {generatedContent && !isLoading && (
         <div className="space-y-2">
           <div className="border rounded-md overflow-hidden">
-            <img src={generatedContent} className="w-full h-auto" />
+            <Image src={generatedContent} alt="lo" className="w-full h-auto" />
           </div>
           <div>
             <Button

@@ -10,6 +10,7 @@ import { useEditorStore } from "../_components/store";
 import { Loader2, Upload } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 
 function UploadPanels() {
   const { canvas } = useEditorStore();
@@ -29,7 +30,7 @@ function UploadPanels() {
     } finally {
       setIsLoading(false);
     }
-  }, [status, session?.idToken]);
+  }, []);
 
   useEffect(() => {
     if (status === "authenticated") fetchUserUploads();
@@ -97,7 +98,7 @@ function UploadPanels() {
                     key={uniqueKey}
                     onClick={() => handleAddImage(imageData.url)}
                   >
-                    <img
+                    <Image
                       src={imageData.url}
                       alt={imageData.name}
                       className="w-full h-full object-cover"

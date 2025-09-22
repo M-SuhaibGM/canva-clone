@@ -1,4 +1,4 @@
-import { Heart, Image, Palette, Printer, Sparkles, Sticker, Type, Upload, Wand, Wand2, Youtube } from 'lucide-react'
+import { Heart, Palette, PictureInPicture, Printer, Sparkles, Sticker, Type, Upload, Wand, Wand2, Youtube } from 'lucide-react'
 
 
 export const designTypes = [
@@ -10,7 +10,7 @@ export const designTypes = [
     height: 500,
   },
   {
-    icon: <Image className="h-6 w-6 text-white" />,
+    icon: <PictureInPicture className="h-6 w-6 text-white"  />,
     label: "Logo Design",
     bgColor: "bg-purple-500",
     width: 400,
