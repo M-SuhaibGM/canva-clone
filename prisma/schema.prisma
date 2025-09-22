@@ -1,0 +1,76 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  accounts      Account[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                       String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId                   String  @db.ObjectId
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? @db.String
+  access_token             String? @db.String
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? @db.String
+  session_state            String?
+  refresh_token_expires_in Int?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+}
+
+model DesignSchema {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  name       String
+  userId     String   @db.ObjectId
+  canvasData Json?
+  width      Int
+  height     Int
+  category   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model mediaSchema {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String
+  name         String
+  cloudinaryId String
+  url          String
+  mimeType     String
+  size         Int
+  width        Int
+  height       Int
+  createdAt    DateTime @default(now())
+}
+model Subscription {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @unique            // 👈 add this
+  isPremium    Boolean  @default(false)
+  paymentId    String?
+  premiumSince DateTime?
+  updatedAt    DateTime @updatedAt
+}
