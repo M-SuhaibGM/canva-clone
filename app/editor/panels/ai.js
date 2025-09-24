@@ -102,7 +102,7 @@ function AiPanels() {
       {generatedContent && !isLoading && (
         <div className="space-y-2">
           <div className="border rounded-md overflow-hidden">
-            <Image src={generatedContent} alt="lo" className="w-full h-auto" />
+            <img src={generatedContent} alt="lo" className="w-full h-auto" />
           </div>
           <div>
             <Button

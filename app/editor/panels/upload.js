@@ -98,7 +98,7 @@ function UploadPanels() {
                     key={uniqueKey}
                     onClick={() => handleAddImage(imageData.url)}
                   >
-                    <Image
+                    <img
                       src={imageData.url}
                       alt={imageData.name}
                       className="w-full h-full object-cover"
