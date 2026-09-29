@@ -19,7 +19,6 @@ export async function GET() {
         console.error('Keep-alive ping failed:', e);
         return NextResponse.json(
             {
-                success: false,
                 message: 'Ping failed',
             },
             { status: 500 }
