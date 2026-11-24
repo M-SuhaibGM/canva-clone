@@ -7,9 +7,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { useEditorStore } from "./store";
 import {
+  AlertCircle,
+  Check,
   ChevronDown,
   Download,
   Eye,
@@ -22,9 +23,9 @@ import {
 import { signOut, useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import ExportModal from "./export";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import toast from "react-hot-toast";
 import Link from "next/link";
+import { FREE_DESIGN_LIMIT } from "@/hooks/useCreateDesign";
 
 function Header() {
   const {
@@ -35,18 +36,24 @@ function Header() {
     canvas,
     saveStatus,
     markAsModified,
-    designId,
+    saveToServer,
+    debouncedSaveToServer,
+    designLoaded,
     userDesigns,
     userSubscription,
     setShowPremiumModal,
+    setShowProperties,
   } = useEditorStore();
   const { data: session } = useSession();
   const [showExportModal, setShowExportModal] = useState(false);
 
+  const isSaving = saveStatus === "Saving...";
+
   const handleLogout = () => {
-    signOut();
+    signOut({ callbackUrl: "/" });
   };
 
+  // Viewing mode: nothing on the canvas can be selected or moved.
   useEffect(() => {
     if (!canvas) return;
     canvas.selection = isEditing;
@@ -54,28 +61,41 @@ function Header() {
       obj.selectable = isEditing;
       obj.evented = isEditing;
     });
-  }, [isEditing]);
+    if (!isEditing) {
+      canvas.discardActiveObject();
+      canvas.isDrawingMode = false;
+      setShowProperties(false);
+    }
+    canvas.requestRenderAll();
+  }, [canvas, isEditing, setShowProperties]);
 
-  useEffect(() => {
-    if (!canvas || !designId) return;
+  const handleNameChange = (e) => {
+    setName(e.target.value);
     markAsModified();
-  }, [name, canvas, designId]);
+  };
+
+  const handleManualSave = async () => {
+    if (!designLoaded || isSaving) return;
+    debouncedSaveToServer.cancel();
+    const result = await saveToServer();
+    if (result) toast.success("Design saved");
+    else toast.error("Couldn't save your design. Please try again.");
+  };
 
   const handleExport = () => {
-    if (userDesigns?.length >= 5 && !userSubscription.isPremium) {
-      toast.error("Please upgrade to premium!", {
-        description: "You need to upgrade to premium to create more designs",
-      });
-
+    if (userDesigns?.length >= FREE_DESIGN_LIMIT && !userSubscription?.isPremium) {
+      toast.error("Free plan limit reached. Upgrade to premium to export.");
+      setShowPremiumModal(true);
       return;
     }
     setShowExportModal(true);
   };
 
   return (
-    <header className="header-gradient header flex items-center justify-between px-4 h-14">
+    <header className="header-gradient header flex items-center justify-between gap-3 px-4 h-14 shrink-0">
       <div className="flex items-center space-x-2">
-        <Link href={"/"}>
+        <Link href="/home" aria-label="Back to dashboard">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="https://static.canva.com/web/images/856bac30504ecac8dbd38dbee61de1f1.svg"
             alt="canva"
@@ -84,7 +104,7 @@ function Header() {
           />
         </Link>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild="true">
+          <DropdownMenuTrigger asChild>
             <button className="header-button flex items-center text-white">
               <span>{isEditing ? "Editing" : "Viewing"}</span>
               <ChevronDown className="ml-1 h-4 w-4" />
@@ -102,40 +122,45 @@ function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
         <button
-          className={
-            "relative flex items-center justify-center p-1.5 rounded-md hover:bg-muted transition-colors"
-          }
-          title={saveStatus !== "Saving..." ? "Save" : saveStatus}
-          disabled={saveStatus === "Saving..."}
+          onClick={handleManualSave}
+          className="header-button gap-1.5"
+          title={isSaving ? "Saving..." : "Save"}
+          disabled={isSaving || !designLoaded}
         >
-          {saveStatus === "Saving..." ? (
-            <div className="relative flex items-center">
-              <Loader2 className="h-5 w-5 animate-spin text-white" />
-              <span className="sr-only">Saving...</span>
-            </div>
+          {isSaving ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : saveStatus === "Error" ? (
+            <AlertCircle className="h-5 w-5 text-red-300" />
           ) : (
-            <Save
-              className={cn("h-5 w-5", saveStatus === "Saved" && "text-white")}
-            />
+            <Save className="h-5 w-5" />
           )}
-
-          {saveStatus === "Saving..." && (
-            <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-yellow-400 animate-pulse" />
-          )}
+          <span className="hidden text-xs sm:flex items-center gap-1" aria-live="polite">
+            {isSaving && "Saving..."}
+            {saveStatus === "Saved" && designLoaded && (
+              <>
+                <Check className="h-3 w-3" /> Saved
+              </>
+            )}
+            {saveStatus === "Error" && "Save failed"}
+          </span>
         </button>
         <button
           onClick={handleExport}
-          className="header-button ml-3 relative"
+          disabled={!designLoaded}
+          className="header-button"
           title="Export"
         >
           <Download className="w-5 h-5" />
         </button>
       </div>
       <div className="flex-1 flex justify-center max-w-md">
-        <Input
-          className="w-full"
+        <input
+          className="header-title-input"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={handleNameChange}
+          maxLength={80}
+          aria-label="Design name"
+          placeholder="Untitled design"
         />
       </div>
       <div className="flex items-center space-x-3">
@@ -144,24 +169,22 @@ function Header() {
           className="upgrade-button flex items-center bg-white/10 hover:bg-white/20 text-white rounded-md h-9 px-3 transition-colors"
         >
           <Star className="mr-1 h-4 w-4 text-yellow-400" />
-          <span>
+          <span className="hidden sm:inline">
             {!userSubscription?.isPremium
               ? "Upgrade To Premium"
               : "Premium Member"}
           </span>
         </button>
         <DropdownMenu>
-          <DropdownMenuTrigger aschild="true">
-            <div className="flex items-center space-x-2 ">
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center space-x-2 cursor-pointer focus:outline-none" aria-label="Account menu">
               <Avatar>
+                <AvatarImage src={session?.user?.image || "/user.png"} />
                 <AvatarFallback>
-                  {session?.user?.name?.[0] || "U"}
+                  {session?.user?.name?.[0]?.toUpperCase() || "U"}
                 </AvatarFallback>
-                <AvatarImage
-                  src={session?.user?.image || "/user.png"}
-                />
               </Avatar>
-            </div>
+            </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem

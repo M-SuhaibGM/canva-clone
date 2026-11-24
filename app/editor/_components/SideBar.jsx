@@ -8,9 +8,18 @@ import DrawPanels from "../panels/draw"
 import UploadPanels from "../panels/upload"
 import SettingPanel from "../panels/settings"
 import AiPanels from "../panels/ai"
+import { useSearchParams } from "next/navigation"
+
+const PANEL_IDS = ["elements", "text", "draw", "upload", "settings", "ai"]
+
 const SideBar = () => {
+  const searchParams = useSearchParams()
+  const initialPanel = searchParams.get("panel")
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false)
-  const [activeSidebar, setActiveSidebar] = useState(null)
+  // e.g. /editor/<id>?panel=ai opens the AI panel straight away
+  const [activeSidebar, setActiveSidebar] = useState(
+    PANEL_IDS.includes(initialPanel) ? initialPanel : null
+  )
 
   const sidebarItems = [
     {
@@ -41,7 +50,7 @@ const SideBar = () => {
     }, {
       id: "ai",
       icon: Sparkles,
-      label: "Ai",
+      label: "AI",
       panel: () => <AiPanels />
     },
   ]
@@ -70,6 +79,8 @@ const SideBar = () => {
         {sidebarItems.map((item) => (
           <div
             onClick={() => handleItemClick(item.id)}
+            role="button"
+            aria-label={item.label}
             key={item.id}
             className={`sidebar-item ${activeSidebar === item.id ? "active" : ""
               }`}

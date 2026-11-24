@@ -1,7 +1,15 @@
 import { fetchWithAuth } from "./base-service";
 
 export async function getUserDesigns() {
-  return fetchWithAuth("/api/design");
+  const designs = await fetchWithAuth("/api/design");
+  return Array.isArray(designs) ? designs : [];
+}
+
+export async function createDesign(designData) {
+  return fetchWithAuth("/api/design", {
+    method: "POST",
+    body: designData,
+  });
 }
 
 export async function getUserDesignByID(designId) {

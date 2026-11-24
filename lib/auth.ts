@@ -35,8 +35,10 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        const user = await db.user.findUnique({
-          where: { email: credentials.email },
+        const email = credentials.email.trim();
+
+        const user = await db.user.findFirst({
+          where: { email: { equals: email, mode: "insensitive" } },
         });
 
         if (!user || !user.password) {
@@ -52,7 +54,13 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        return user;
+        // Never hand the password hash to the session / token layer.
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+        };
       },
     }),
   ],
@@ -77,6 +85,6 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   pages: {
     signIn: "/",
-    error: "/auth/error",
+    error: "/",
   },
 };

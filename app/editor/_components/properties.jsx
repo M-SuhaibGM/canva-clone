@@ -69,8 +69,6 @@ function Properties() {
             const activeObject = canvas.getActiveObject();
 
             if (activeObject) {
-                console.log(activeObject.type, "activeObjecttype");
-
                 setSelectedObject(activeObject);
                 //update common properties
                 setOpacity(Math.round(activeObject.opacity * 100) || 100);
@@ -80,7 +78,7 @@ function Properties() {
                 setBorderWidth(activeObject.strokeWidth || 0);
 
                 //check based on type
-                if (activeObject.type === "i-text") {
+                if (activeObject.type === "itext" || activeObject.type === "i-text") {
                     setObjectType("text");
 
                     setText(activeObject.text || "");
@@ -367,7 +365,7 @@ function Properties() {
             canvas.renderAll();
             markAsModified();
         } catch (e) {
-            console.error("Failed to apply filters");
+            console.error("Failed to apply filters", e);
         }
     };
 
@@ -391,7 +389,7 @@ function Properties() {
             canvas.renderAll();
             markAsModified();
         } catch (error) {
-            console.error("Error while applying blur !", e);
+            console.error("Error while applying blur !", error);
         }
     };
 

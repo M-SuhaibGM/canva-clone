@@ -35,7 +35,7 @@ const Canvas = () => {
 
 
     const initcanvas = async () => {
-      if (typeof window === undefined || !canvasRef.current || initAttemptedRef.current) {
+      if (typeof window === 'undefined' || !canvasRef.current || initAttemptedRef.current) {
         return
       }
       initAttemptedRef.current = true
@@ -70,7 +70,7 @@ const Canvas = () => {
 
 
   return (
-    <div className=" relative w-full h-[600px] overflow-auto " ref={canvasContanerRef}>
+    <div className="absolute inset-0 flex overflow-auto p-8" ref={canvasContanerRef}>
       <canvas ref={canvasRef} />
     </div>
   )

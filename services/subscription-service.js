@@ -11,7 +11,7 @@ export async function createPaypalOrder() {
 }
 
 export async function capturePaypalOrder(orderId) {
-  return fetchWithAuth(`/v1/subscription/capture-order`, {
+  return fetchWithAuth(`/api/subscription/capture`, {
     method: "post",
     body: {
       orderId,

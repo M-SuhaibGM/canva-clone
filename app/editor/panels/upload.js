@@ -1,4 +1,3 @@
-// app/api/upload/route.js
 "use client";
 
 import { Input } from "@/components/ui/input";
@@ -10,7 +9,7 @@ import { useEditorStore } from "../_components/store";
 import { Loader2, Upload } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
+import toast from "react-hot-toast";
 
 function UploadPanels() {
   const { canvas } = useEditorStore();
@@ -26,7 +25,7 @@ function UploadPanels() {
       const data = await fetchWithAuth("/api/media");
       setUserUploads(data?.data || []);
     } catch (e) {
-      console.error(e);
+      toast.error(e.message || "Failed to load your uploads");
     } finally {
       setIsLoading(false);
     }
@@ -40,13 +39,20 @@ function UploadPanels() {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File is too large (max 10MB)");
+      e.target.value = "";
+      return;
+    }
+
     setIsUploading(true);
 
     try {
       const result = await uploadFileWithAuth(file);
-      setUserUploads((prev) => [result?.data, ...prev]);
+      if (result?.data) setUserUploads((prev) => [result.data, ...prev]);
+      toast.success("Image uploaded");
     } catch (e) {
-      console.error("Error while uploading the file");
+      toast.error(e.message || "Error while uploading the file");
     } finally {
       setIsUploading(false);
       e.target.value = "";
@@ -55,7 +61,9 @@ function UploadPanels() {
 
   const handleAddImage = (imageUrl) => {
     if (!canvas) return;
-    addImageToCanvas(canvas, imageUrl);
+    addImageToCanvas(canvas, imageUrl).catch(() =>
+      toast.error("Couldn't add the image to the canvas")
+    );
   };
 
   return (

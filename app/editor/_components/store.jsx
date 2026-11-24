@@ -26,60 +26,68 @@ export const useEditorStore = create((set, get) => ({
   showProperties: false,
   setShowProperties: (flag) => set({ showProperties: flag }),
 
-  saveStatus: "saved",
+  // true once the saved design has been loaded into the canvas. Nothing may be
+  // auto-saved before that, otherwise the empty canvas would overwrite it.
+  designLoaded: false,
+  setDesignLoaded: (flag) => set({ designLoaded: flag }),
+
+  saveStatus: "Saved",
   setSaveStatus: (status) => set({ saveStatus: status }),
   lastModified: Date.now(),
   isModified: false,
 
   markAsModified: () => {
-    const designId = get().designId;
+    const { designId, designLoaded } = get();
 
-    if (designId) {
-      set({
-        lastModified: Date.now(),
-        saveStatus: "Saving...",
-        isModified: true,
-      });
+    if (!designId || !designLoaded) return;
 
-      get().debouncedSaveToServer();
-    } else {
-      console.error("No design ID Available");
-    }
+    set({
+      lastModified: Date.now(),
+      saveStatus: "Saving...",
+      isModified: true,
+    });
+
+    get().debouncedSaveToServer();
   },
 
   saveToServer: async () => {
     const designId = get().designId;
     const canvas = get().canvas;
 
-    if (!canvas || !designId) {
-      console.log("No design ID Available or canvas instance is not available");
+    if (!canvas || !designId || !get().designLoaded) {
       return null;
     }
+
+    set({ saveStatus: "Saving..." });
 
     try {
       const savedDesign = await saveCanvasState(canvas, designId, get().name);
 
-      set({
-        saveStatus: "Saved",
-        isModified: false,
-      });
+      // Another edit may have been made while saving.
+      if (get().designId === designId) {
+        set({ saveStatus: "Saved", isModified: false });
+      }
 
       return savedDesign;
     } catch (e) {
-      set({ saveStatus: "Error" });
+      console.error("Failed to save design", e);
+      if (get().designId === designId) set({ saveStatus: "Error" });
       return null;
     }
   },
 
   debouncedSaveToServer: debounce(() => {
     get().saveToServer();
-  }, 500),
+  }, 800),
 
   userSubscription: null,
   setUserSubscription: (data) => set({ userSubscription: data }),
 
   userDesigns: [],
   setUserDesigns: (data) => set({ userDesigns: data }),
+
+  searchQuery: "",
+  setSearchQuery: (value) => set({ searchQuery: value }),
 
   userDesignsLoading: false,
   setUserDesignsLoading: (flag) => set({ userDesignsLoading: flag }),
@@ -94,6 +102,7 @@ export const useEditorStore = create((set, get) => ({
     set({
       canvas: null,
       designId: null,
+      designLoaded: false,
       isEditing: true,
       name: "Untitled Design",
       showProperties: false,

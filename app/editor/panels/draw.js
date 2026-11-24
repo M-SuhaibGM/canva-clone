@@ -10,6 +10,7 @@ import {
   toggleDrawingMode,
   toggleEraseMode,
   updateDrawingBrush,
+  withAlpha,
 } from "@/lib/fabric";
 import { useEditorStore } from "../_components/store";
 import {
@@ -21,7 +22,7 @@ import {
   PencilIcon,
   Plus,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function DrawingPanels() {
   const { canvas } = useEditorStore();
@@ -32,6 +33,27 @@ function DrawingPanels() {
   const [drawingOpacity, setDrawingOpacity] = useState(100);
   const [activeTab, setActiveTab] = useState("colors");
 
+  // Leaving the Draw panel must not leave the canvas stuck in drawing mode
+  // (where objects can't be selected).
+  const canvasRef = useRef(canvas);
+  canvasRef.current = canvas;
+  useEffect(() => {
+    return () => {
+      if (canvasRef.current) {
+        toggleDrawingMode(canvasRef.current, false);
+      }
+    };
+  }, []);
+
+  // The current brush colour including opacity.
+  const applyBrush = (overrides = {}) => {
+    if (!canvas) return;
+    const color = overrides.color ?? drawingColor;
+    const opacity = overrides.opacity ?? drawingOpacity / 100;
+    const width = overrides.width ?? brushWidth;
+    updateDrawingBrush(canvas, { color, opacity, width });
+  };
+
   const handleToggleDrawingMode = () => {
     if (!canvas) return;
     const newMode = !isDrawingMode;
@@ -41,14 +63,19 @@ function DrawingPanels() {
       setIsErasing(false);
     }
 
-    toggleDrawingMode(canvas, newMode, drawingColor, brushWidth);
+    toggleDrawingMode(
+      canvas,
+      newMode,
+      withAlpha(drawingColor, drawingOpacity / 100),
+      brushWidth
+    );
   };
 
   const handleDrawingColorChange = (color) => {
     setDrawingColor(color);
 
     if (canvas && isDrawingMode && !isErasing) {
-      updateDrawingBrush(canvas, { color });
+      applyBrush({ color });
     }
   };
 
@@ -62,17 +89,24 @@ function DrawingPanels() {
   const handleDrawingOpacityChange = (value) => {
     const opacity = Number(value[0]);
     setDrawingOpacity(opacity);
-    if (canvas && isDrawingMode) {
-      updateDrawingBrush(canvas, { opacity: opacity / 100 });
+    if (canvas && isDrawingMode && !isErasing) {
+      applyBrush({ opacity: opacity / 100 });
     }
   };
 
   const handleToggleErasing = () => {
-    if (!canvas && !isDrawingMode) return;
+    if (!canvas || !isDrawingMode) return;
     const newErasing = !isErasing;
     setIsErasing(newErasing);
 
-    toggleEraseMode(canvas, newErasing, drawingColor, brushWidth * 2);
+    toggleEraseMode(
+      canvas,
+      newErasing,
+      withAlpha(drawingColor, drawingOpacity / 100),
+      brushWidth * 2
+    );
+    // Going back to the brush: restore the normal brush size.
+    if (!newErasing) updateDrawingBrush(canvas, { width: brushWidth });
   };
 
   return (
@@ -173,7 +207,7 @@ function DrawingPanels() {
                       min={1}
                       max={30}
                       step={1}
-                      onValueChange={(value) => setBrushWidth(value[0])}
+                      onValueChange={(value) => handleBrushWidthChange(value[0])}
                       className="flex-1"
                     />
                     <Plus className="h-4 w-4 text-gray-500" />

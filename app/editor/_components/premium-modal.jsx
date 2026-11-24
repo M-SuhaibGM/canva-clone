@@ -13,21 +13,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { createPaypalOrder } from "@/services/subscription-service";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 function SubscriptionModal({ isOpen, onClose }) {
   const { userSubscription } = useEditorStore();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleUpgrade = async () => {
+    if (isLoading) return;
     setIsLoading(true);
-    const response = await createPaypalOrder();
+    try {
+      const response = await createPaypalOrder();
 
-    if (response.success) {
-      window.location.href = response.data.approvalLink;
-      setIsLoading(false);
-    } else {
-      setIsLoading(false);
+      if (response?.success && response.data?.approvalLink) {
+        // Leave the spinner on while the browser navigates to PayPal.
+        window.location.href = response.data.approvalLink;
+        return;
+      }
+      toast.error("Could not start the payment. Please try again.");
+    } catch (e) {
+      toast.error(e.message || "Could not start the payment. Please try again.");
     }
+    setIsLoading(false);
   };
 
   return (
@@ -47,10 +54,11 @@ function SubscriptionModal({ isOpen, onClose }) {
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
                     <p className="text-green-700 font-medium">
-                      Premium active since{" "}
-                      {new Date(
-                        userSubscription?.premiumSince
-                      ).toLocaleDateString() || "recently"}
+                      {userSubscription?.premiumSince
+                        ? `Premium active since ${new Date(
+                            userSubscription.premiumSince
+                          ).toLocaleDateString()}`
+                        : "Premium is active"}
                     </p>
                   </div>
                 </div>
@@ -139,6 +147,7 @@ function SubscriptionModal({ isOpen, onClose }) {
                   <Button
                     className={"w-full bg-purple-600 hover:bg-purple-700"}
                     onClick={handleUpgrade}
+                    disabled={isLoading}
                   >
                     {isLoading ? (
                       <>

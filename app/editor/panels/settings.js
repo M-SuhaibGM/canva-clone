@@ -13,11 +13,18 @@ import { colorPresets } from "@/app/config";
 import { centerCanvas } from "@/lib/fabric";
 import { useEditorStore } from "../_components/store";
 import { Check, Palette } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function SettingPanel() {
   const [backgroundColor, setBackgroundColor] = useState("#ffffff");
   const { canvas, markAsModified } = useEditorStore();
+
+  // Start from the canvas' current background.
+  useEffect(() => {
+    if (canvas && typeof canvas.backgroundColor === "string" && canvas.backgroundColor) {
+      setBackgroundColor(canvas.backgroundColor);
+    }
+  }, [canvas]);
 
   const handleColorChange = (event) => {
     setBackgroundColor(event.target.value);
@@ -47,18 +54,19 @@ function SettingPanel() {
           {colorPresets.map((color) => (
             <TooltipProvider key={color}>
               <Tooltip>
-                <TooltipTrigger asChild="true">
+                <TooltipTrigger asChild>
                   <button
                     className={`w-8 h-8 rounded-md border transition-transform hover:scale-110 ${
-                      color === backgroundColor
+                      color.toLowerCase() === backgroundColor.toLowerCase()
                         ? "ring-2 ring-offset-2 ring-primary"
                         : ""
                     }`}
                     style={{ backgroundColor: color }}
                     onClick={() => handleColorPresetApply(color)}
+                    aria-label={`Use ${color}`}
                   >
-                    {color === backgroundColor && (
-                      <Check className="w-4 h-4 text-white mx-auto drop-shadow-md" />
+                    {color.toLowerCase() === backgroundColor.toLowerCase() && (
+                      <Check className="w-4 h-4 mx-auto text-gray-500 mix-blend-difference drop-shadow-md" />
                     )}
                   </button>
                 </TooltipTrigger>
@@ -70,21 +78,21 @@ function SettingPanel() {
           ))}
         </div>
         <div className="flex mt-3 space-x-2">
-          <div className="relative">
-            <Input
-              type="color"
-              value={backgroundColor}
-              onChange={handleColorChange}
-              className={"w-12 h-10 p-1 cursor-pointer"}
-            />
-            <Input
-              type={"text"}
-              value={backgroundColor}
-              onChange={handleColorChange}
-              className="flex-1"
-              placeholder="#FFFFFF"
-            />
-          </div>
+          <Input
+            type="color"
+            value={/^#[0-9a-f]{6}$/i.test(backgroundColor) ? backgroundColor : "#ffffff"}
+            onChange={handleColorChange}
+            className={"w-12 h-10 p-1 cursor-pointer shrink-0"}
+            aria-label="Pick a colour"
+          />
+          <Input
+            type={"text"}
+            value={backgroundColor}
+            onChange={handleColorChange}
+            className="flex-1 h-10"
+            placeholder="#FFFFFF"
+            aria-label="Colour value"
+          />
         </div>
         <Separator className="my-4" />
         <Button className="w-full" onClick={handleApplyChanges}>

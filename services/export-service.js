@@ -11,6 +11,7 @@ export function exportAsJson(canvas, fileName = "FileName") {
 
     const canvasJsonBlob = new Blob([jsonString], { type: "application/json" });
     saveAs(canvasJsonBlob, `${fileName}.json`);
+    return true;
   } catch (e) {
     return false;
   }
@@ -31,6 +32,7 @@ export function exportAsPng(canvas, fileName = "PNG FileName", options = {}) {
     const dataURL = canvas.toDataURL(defaultOptions);
 
     saveAs(dataURL, `${fileName}.png`);
+    return true;
   } catch (e) {
     return false;
   }

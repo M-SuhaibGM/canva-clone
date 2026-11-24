@@ -1,105 +1,102 @@
-
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import getSession from "@/actions/getSession";
 
+async function getUserId() {
+  const session = await getSession();
+  return session?.user?.id || null;
+}
+
+const unauthorized = () =>
+  NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+
+const toPositiveInt = (value, fallback) => {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+
 export async function POST(request) {
   try {
-    const session = await getSession()
-    const userId = session.user?.id
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const userId = await getUserId();
+    if (!userId) return unauthorized();
 
-    const { name, canvasData, height, width, category } = await request.json()
+    const { name, canvasData, height, width, category } = await request.json();
 
     const design = await db.designSchema.create({
       data: {
         userId,
-        name,
+        name: (typeof name === "string" && name.trim()) || "Untitled design",
         canvasData,
-        height,
-        width,
-        category: category || "youtube_thumbnal"
-      }
-    })
-
+        height: toPositiveInt(height, 465),
+        width: toPositiveInt(width, 825),
+        category: category || "youtube_thumbnail",
+      },
+    });
 
     return NextResponse.json(design);
-
   } catch (error) {
-    console.log("Error getting design:", error);
-    return NextResponse.json({ message: "Error getting designes" }, { status: 500 });
+    console.error("Error creating design:", error);
+    return NextResponse.json({ message: "Error creating design" }, { status: 500 });
   }
 }
-export async function GET(request) {
+
+export async function GET() {
   try {
-    const session = await getSession()
-    const userId = session.user?.id
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const userId = await getUserId();
+    if (!userId) return unauthorized();
 
-    const design = await db.designSchema.findMany({
-      where: {
-        userId
-      }
-    })
+    const designs = await db.designSchema.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" },
+    });
 
-
-    return NextResponse.json(design);
-
+    return NextResponse.json(designs);
   } catch (error) {
-    console.log("Error getting design:", error);
-    return NextResponse.json({ message: "Error getting designes" }, { status: 500 });
+    console.error("Error getting designs:", error);
+    return NextResponse.json({ message: "Error getting designs" }, { status: 500 });
   }
 }
 
 export async function PUT(request) {
   try {
-    const session = await getSession()
-    const userId = session.user?.id
-    if (!userId) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
+    const userId = await getUserId();
+    if (!userId) return unauthorized();
 
     const { designId, name, canvasData, width, height, category } = await request.json();
+
+    if (!designId) {
+      return NextResponse.json(
+        { success: false, message: "designId is required" },
+        { status: 400 }
+      );
+    }
+
     const existingDesign = await db.designSchema.findFirst({
-      where: {
-        id: designId,
-        userId: userId
-      }
+      where: { id: designId, userId },
     });
 
     if (!existingDesign) {
       return NextResponse.json(
         {
           success: false,
-          message: "Design not found or you don't have permission to update it."
+          message: "Design not found or you don't have permission to update it.",
         },
         { status: 404 }
       );
     }
 
     const updatedDesign = await db.designSchema.update({
-      where: {
-        id: designId
-      },
+      where: { id: designId },
       data: {
         name,
         canvasData,
         category,
         width,
         height,
-        userId
-      }
+      },
     });
 
-    return NextResponse.json({
-      success: true,
-      data: updatedDesign
-    });
-
+    return NextResponse.json({ success: true, data: updatedDesign });
   } catch (error) {
     console.error("Error updating design:", error);
     return NextResponse.json(
@@ -108,9 +105,3 @@ export async function PUT(request) {
     );
   }
 }
-
-
-
-
-
-

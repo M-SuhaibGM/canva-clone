@@ -7,7 +7,7 @@ import { generateImageFromAI } from "@/services/upload-service";
 import { useEditorStore } from "../_components/store";
 import { Loader, Sparkles, Wand2 } from "lucide-react";
 import { useState } from "react";
-import Image from "next/image";
+import toast from "react-hot-toast";
 
 function AiPanels() {
   const { canvas } = useEditorStore();
@@ -29,7 +29,7 @@ function AiPanels() {
     try {
       await generateImage(prompt);
     } catch (e) {
-      console.error(e);
+      toast.error(e.message || "Failed to generate image");
     } finally {
       setIsLoading(false);
     }
@@ -40,18 +40,23 @@ function AiPanels() {
       const response = await generateImageFromAI(prompt);
       if (response && response?.data?.url) {
         setGeneratedContent(response?.data?.url);
+      } else {
+        throw new Error("No image was returned. Please try again.");
       }
-      console.log(response);
     } catch (e) {
-      console.error("Error generating image from AI");
+      console.error("Error generating image from AI", e);
       throw e;
     }
   };
 
   const handleAiImageToCanvas = async () => {
-    if (!canvas && !generatedContent) return;
+    if (!canvas || !generatedContent) return;
 
-    addImageToCanvas(canvas, generatedContent);
+    try {
+      await addImageToCanvas(canvas, generatedContent);
+    } catch (e) {
+      toast.error("Couldn't add the image to the canvas");
+    }
   };
 
   return (
@@ -91,7 +96,7 @@ function AiPanels() {
       </div>
 
       {isLoading && (
-        <div className="border rounded-md bg-gray-50 p-6 flex-col items-center justify-center">
+        <div className="mx-4 border rounded-md bg-gray-50 p-6 flex flex-col items-center justify-center">
           <Loader className="w-8 h-8 animate-spin text-purple-500 mb-3" />
           <p className="text-sm text-center text-gray-600">
             Creating your image ...
@@ -100,14 +105,14 @@ function AiPanels() {
       )}
 
       {generatedContent && !isLoading && (
-        <div className="space-y-2">
+        <div className="space-y-3 px-4 pb-4">
           <div className="border rounded-md overflow-hidden">
-            <img src={generatedContent} alt="lo" className="w-full h-auto" />
+            <img src={generatedContent} alt="AI generated" className="w-full h-auto" />
           </div>
           <div>
             <Button
               onClick={handleAiImageToCanvas}
-              className={"flex-1"}
+              className={"w-full"}
               variant={uploadSuccess ? "outline" : "default"}
               disabled={isUploading}
             >

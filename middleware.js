@@ -1,22 +1,42 @@
-import { withAuth } from "next-auth/middleware"
+import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-export default withAuth({
-  pages: {
-    signIn: "/", // The sign-in page is your root page
-  },
-  callbacks: {
-    authorized: ({ token }) => {
-      // If token exists (user is authenticated), allow access
-      // If no token, they'll be automatically redirected to signIn page
-      return !!token
-    },
-  },
-})
+// Pages that only make sense for signed-out visitors.
+const AUTH_PAGES = ["/", "/register"];
+
+// Only allow same-site relative redirects (prevents open redirects).
+function safeCallback(value) {
+  if (value && value.startsWith("/") && !value.startsWith("//")) return value;
+  return "/home";
+}
+
+export async function middleware(req) {
+  const { pathname, search } = req.nextUrl;
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const isAuthPage = AUTH_PAGES.includes(pathname);
+
+  // Signed in users should never see the login / register page.
+  if (token && isAuthPage) {
+    const target = safeCallback(req.nextUrl.searchParams.get("callbackUrl"));
+    return NextResponse.redirect(new URL(target, req.url));
+  }
+
+  // Signed out users are sent to the login page and brought back afterwards.
+  if (!token && !isAuthPage) {
+    const loginUrl = new URL("/", req.url);
+    loginUrl.searchParams.set("callbackUrl", `${pathname}${search}`);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
-    "/editor/:path*",
+    "/",
+    "/register",
     "/home/:path*",
-    // Add any other private routes here
-  ]
-}
+    "/editor/:path*",
+    "/subscription/:path*",
+  ],
+};

@@ -1,5 +1,6 @@
 "use client"
-import React from 'react'
+import React, { useEffect } from 'react'
+import toast from 'react-hot-toast'
 import Banner from '../_component/Banner'
 import Sidebar from '../_component/Sidebar'
 import Header from '../_component/Header'
@@ -8,10 +9,10 @@ import AiFeatures from '../_component/AiFeatures'
 import RecentDesign from '../_component/RecentDesign'
 import DesignModal from '../_component/designs-modal'
 import SubscriptionModal from '../editor/_components/premium-modal'
-import { useEffect } from 'react'
 import { useEditorStore } from '../editor/_components/store'
 import { getUserSubscription } from '@/services/subscription-service'
 import { getUserDesigns } from '@/services/design-service'
+
 const Home = () => {
     const {
         setUserSubscription,
@@ -23,38 +24,52 @@ const Home = () => {
         userDesigns,
         setUserDesignsLoading,
         userDesignsLoading,
+        setSearchQuery,
     } = useEditorStore();
 
-    const fetchUserSubscription = async () => {
-        const response = await getUserSubscription();
-
-        if (response.success) setUserSubscription(response.data);
-    };
-
-    async function fetchUserDesigns() {
-        setUserDesignsLoading(true);
-        const result = await getUserDesigns();
-        setUserDesigns(result);
-        setUserDesignsLoading(false);
-
-    }
-
     useEffect(() => {
-        fetchUserSubscription();
-        fetchUserDesigns();
-    }, []);
+        let cancelled = false;
+
+        // Start from a clean search every time the dashboard opens.
+        setSearchQuery("");
+
+        const load = async () => {
+            setUserDesignsLoading(true);
+            try {
+                const [subscription, designs] = await Promise.allSettled([
+                    getUserSubscription(),
+                    getUserDesigns(),
+                ]);
+                if (cancelled) return;
+
+                if (subscription.status === "fulfilled" && subscription.value?.success) {
+                    setUserSubscription(subscription.value.data);
+                }
+                if (designs.status === "fulfilled") {
+                    setUserDesigns(designs.value);
+                } else {
+                    toast.error(designs.reason?.message || "Failed to load your designs");
+                }
+            } finally {
+                if (!cancelled) setUserDesignsLoading(false);
+            }
+        };
+
+        load();
+        return () => { cancelled = true };
+    }, [setUserSubscription, setUserDesigns, setUserDesignsLoading, setSearchQuery]);
+
     return (
         <div className='flex min-h-screen bg-white'>
             <Sidebar />
-            <div className="flex flex-1 flex-col ml-[72px] ">
+            <div className="flex flex-1 min-w-0 flex-col ml-[72px]">
                 <Header />
-                <main className=" p-6  pt-20 overflow-y-auto flex-1">
+                <main className="p-4 sm:p-6 pt-24 flex-1 w-full max-w-[1400px] mx-auto">
                     <Banner />
                     <DesignType />
                     <AiFeatures />
                     <RecentDesign />
                 </main>
-
             </div>
             <SubscriptionModal
                 isOpen={showPremiumModal}
@@ -70,4 +85,4 @@ const Home = () => {
         </div >
     )
 }
-export default Home 
+export default Home

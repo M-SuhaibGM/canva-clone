@@ -1,99 +1,76 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
+/**
+ * Thumbnail of a saved design. The canvas is rendered at the design's real
+ * size and scaled down with CSS so the aspect ratio is always preserved.
+ */
 function DesignPreview({ design }) {
-  const [canvasId] = useState(`canvas-${design._id}-${Date.now()}`);
-  const fabricCanvasRef = useRef(null);
+  const canvasElRef = useRef(null);
 
   useEffect(() => {
-    const timer = setTimeout(async () => {
+    let cancelled = false;
+    let previewCanvas = null;
+
+    const render = async () => {
+      const el = canvasElRef.current;
+      if (!el) return;
+
       try {
-        if (
-          fabricCanvasRef.current &&
-          typeof fabricCanvasRef.current.dispose === "function"
-        ) {
+        const fabric = await import("fabric");
+        if (cancelled) return;
+
+        previewCanvas = new fabric.StaticCanvas(el, {
+          width: design.width || 825,
+          height: design.height || 465,
+          backgroundColor: "#ffffff",
+          renderOnAddRemove: false,
+        });
+
+        // Scale with CSS instead of stretching the canvas.
+        el.style.width = "100%";
+        el.style.height = "100%";
+        el.style.objectFit = "contain";
+
+        let canvasData = design.canvasData;
+        if (typeof canvasData === "string") {
           try {
-            fabricCanvasRef.current.dispose();
-            fabricCanvasRef.current = null;
-          } catch (e) {
-            console.error("Error while disposing canvas");
+            canvasData = JSON.parse(canvasData);
+          } catch {
+            canvasData = null;
           }
         }
 
-        const fabric = await import("fabric");
-        const canvasElement = document.getElementById(canvasId);
-
-        if (!canvasElement) return;
-
-        const designPreviewCanvas = new fabric.StaticCanvas(canvasId, {
-          width: 300,
-          height: 300,
-          renderOnAddRemove: true,
-        });
-
-        fabricCanvasRef.current = designPreviewCanvas;
-
-        let canvasData;
-
-        try {
-          canvasData =
-            typeof design.canvasData === "string"
-              ? JSON.parse(design.canvasData)
-              : design.canvasData;
-        } catch (innerErr) {
-          console.error("Error parsing canvas data");
-
+        if (!canvasData || !canvasData.objects?.length) {
+          if (canvasData?.background) previewCanvas.backgroundColor = canvasData.background;
+          previewCanvas.requestRenderAll();
           return;
         }
 
-        if (
-          canvasData === undefined ||
-          canvasData === null ||
-          canvasData?.objects?.length === 0
-        ) {
-          designPreviewCanvas.backgroundColor = "#21f365";
-          designPreviewCanvas.requestRenderAll();
-          return;
-        }
-
-        if (canvasData.background) {
-          designPreviewCanvas.backgroundColor = canvasData.background;
-          designPreviewCanvas.requestRenderAll();
-        }
-
-        designPreviewCanvas.loadFromJSON(canvasData, () => {
-          designPreviewCanvas.requestRenderAll();
-        });
+        await previewCanvas.loadFromJSON(canvasData);
+        if (cancelled) return;
+        previewCanvas.requestRenderAll();
       } catch (e) {
-        console.error("Error rendering design preview data");
+        console.error("Error rendering design preview", e);
       }
-    }, 100);
+    };
+
+    render();
 
     return () => {
-      clearTimeout(timer);
-      if (
-        fabricCanvasRef.current &&
-        typeof fabricCanvasRef.current.dispose === "function"
-      ) {
+      cancelled = true;
+      if (previewCanvas) {
         try {
-          fabricCanvasRef.current.dispose();
-          fabricCanvasRef.current = null;
+          previewCanvas.dispose();
         } catch (e) {
-          console.error("Error while disposing canvas");
+          console.error("Error while disposing preview canvas", e);
         }
       }
     };
-  }, [design?._id, canvasId]);
+  }, [design.id, design.canvasData, design.width, design.height]);
 
-  return (
-    <canvas
-      id={canvasId}
-      width="300"
-      height="300"
-      className="h-full w-full object-contain"
-    />
-  );
+  return <canvas ref={canvasElRef} className="h-full w-full" />;
 }
 
 export default DesignPreview;

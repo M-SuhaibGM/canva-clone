@@ -26,9 +26,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 function ExportModal({ isOpen, onClose }) {
-  const { canvas } = useEditorStore();
+  const { canvas, name } = useEditorStore();
+  // File name based on the design name, safe for every OS.
+  const fileName = (name || "design").replace(/[\\/:*?"<>|]+/g, "").trim() || "design";
 
   const [selectedFormat, setSelectedFormat] = useState("png");
   const [isExporting, setIsExporting] = useState(false);
@@ -69,22 +72,22 @@ function ExportModal({ isOpen, onClose }) {
 
       switch (selectedFormat) {
         case "json":
-          successFlag = exportAsJson(canvas, "JSON FileName");
+          successFlag = exportAsJson(canvas, fileName);
 
           break;
 
         case "png":
-          successFlag = exportAsPng(canvas, "PNG FileName");
+          successFlag = exportAsPng(canvas, fileName);
 
           break;
 
         case "svg":
-          successFlag = exportAsSVG(canvas, "SVG FileName");
+          successFlag = exportAsSVG(canvas, fileName);
 
           break;
 
         case "pdf":
-          successFlag = exportAsPDF(canvas, "PDF FileName");
+          successFlag = exportAsPDF(canvas, fileName);
 
           break;
 
@@ -93,12 +96,16 @@ function ExportModal({ isOpen, onClose }) {
       }
 
       if (successFlag) {
+        toast.success("Export ready");
         setTimeout(() => {
-          onClose();
+          onClose(false);
         }, 500);
+      } else {
+        toast.error("Export failed. Please try again.");
       }
     } catch (e) {
-      throw new Error("Export failed");
+      console.error("Export failed", e);
+      toast.error("Export failed. Please try again.");
     } finally {
       setIsExporting(false);
     }
@@ -156,7 +163,7 @@ function ExportModal({ isOpen, onClose }) {
           >
             {isExporting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Exporting...
               </>
             ) : (
